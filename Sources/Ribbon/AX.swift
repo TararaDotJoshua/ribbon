@@ -48,9 +48,7 @@ enum AX {
         return _AXUIElementGetWindow(element, &id) == .success && id != 0 ? id : nil
     }
 
-    /// Chrome, Electron and others animate their own frame changes when
-    /// AXEnhancedUserInterface is on, which makes moves slow and laggy. Turn it
-    /// off around our writes and put it back afterwards (as Paneru does).
+    /// Apps like Chrome animate frame changes while AXEnhancedUserInterface is on.
     private static var enhancedUIDisabled = Set<pid_t>()
     /// Apps seen with it off; skips an AX round trip on every move.
     private static var enhancedUIAbsent = Set<pid_t>()
@@ -74,9 +72,7 @@ enum AX {
     }
 }
 
-/// SkyLight calls Paneru uses to focus one specific window of an app, which
-/// `NSRunningApplication.activate` cannot do and which works from a
-/// background agent. Looked up at runtime; we fall back to AX if missing.
+/// Private SkyLight calls for focusing a specific window, looked up at runtime.
 private enum SkyLight {
     struct PSN { var high: UInt32 = 0; var low: UInt32 = 0 }
     typealias SetFront = @convention(c) (UnsafeMutableRawPointer, UInt32, UInt32) -> Int32

@@ -1,12 +1,7 @@
 #!/bin/sh
-# Tab groups demo. Opens a few throwaway windows (two TextEdit notes, two
-# Chrome pages in a temporary profile, a Finder window), runs the development
-# build of Ribbon on just those apps, and makes the first two windows a tab
-# group. Press Ctrl+C to end: the demo windows close and your installed Ribbon
-# comes back.
-#
-# Needs Accessibility access for whatever runs it (the Claude app's terminal
-# already has it), and an unlocked screen.
+# Opens throwaway TextEdit, Chrome and Finder windows and runs the dev build on
+# just those apps with a tab group. Ctrl+C cleans up and restarts the installed app.
+# Requires Accessibility access for the terminal.
 set -e
 cd "$(dirname "$0")/.."
 DEMO="${TMPDIR:-/tmp}/ribbon-demo"
@@ -15,10 +10,10 @@ INSTALLED_WAS_RUNNING=0
 if pgrep -x Ribbon >/dev/null; then INSTALLED_WAS_RUNNING=1; pkill -x Ribbon; sleep 1.5; fi
 
 printf 'Trip notes\n\nDay 1: Lisbon, tram 28 up to Alfama.\nDay 2: Sintra; Pena Palace opens at 9:30.\nDay 3: LX Factory, then Belém.\n\nPacking\n- adapter\n- walking shoes\n' > "$DEMO/Trip notes.txt"
-printf 'Ribbon ideas\n\n- Tab groups (this demo)\n- Overview: zoom out to see the whole strip\n- Saved views on ctrl+alt+1-9\n- Reorder tabs by dragging in the bar\n' > "$DEMO/Ribbon ideas.txt"
+printf 'Groceries\n\n- coffee\n- lemons\n- bread\n- olive oil\n' > "$DEMO/Groceries.txt"
 
 # Don't let TextEdit reopen documents from earlier runs.
-open -a TextEdit "$DEMO/Trip notes.txt" "$DEMO/Ribbon ideas.txt" --args -ApplePersistenceIgnoreState YES
+open -a TextEdit "$DEMO/Trip notes.txt" "$DEMO/Groceries.txt" --args -ApplePersistenceIgnoreState YES
 open -na "Google Chrome" --args --user-data-dir="$DEMO/chrome" --no-first-run --no-default-browser-check \
   --new-window 'https://en.wikipedia.org/wiki/Tab_(interface)'
 sleep 3

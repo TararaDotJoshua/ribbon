@@ -236,13 +236,8 @@ public struct Strip: Codable, Equatable, Sendable {
         focus(index: f + (direction == .right ? 1 : -1), g)
     }
 
-    /// Shift+Ctrl+Left / Shift+Ctrl+Right: the next set of windows.
-    ///
-    /// Right: the first column not wholly visible on the right moves to the
-    /// viewport's left edge. Left: the last column not wholly visible on the
-    /// left moves to the right edge. Pages stop at the strip's ends rather
-    /// than showing empty canvas. Focus lands on the window nearest the set
-    /// just left, so Ctrl+arrow carries on in the same direction.
+    /// The next set of windows: the first column not fully visible in that
+    /// direction moves to the opposite edge, clamped to the strip's ends.
     public mutating func page(_ direction: Direction, _ g: Geometry) {
         guard !columns.isEmpty else { return }
         let cols = layout(g)

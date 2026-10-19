@@ -1,9 +1,8 @@
 import AppKit
 import RibbonCore
 
-/// Global key bindings and scroll-wheel panning through a CGEventTap at the
-/// HID level (as Paneru does). Sitting that early lets bound keys be
-/// swallowed before macOS acts on them, e.g. Ctrl+arrow switching Spaces.
+/// Key bindings and scroll panning via a HID-level event tap, which sees keys
+/// before macOS's own shortcuts (such as Ctrl+arrow for Spaces).
 final class Hotkeys {
     var bindings: [KeyCombo: Command] = [:]
     var panModifiers: KeyCombo.Modifiers?

@@ -2,9 +2,8 @@ import AppKit
 import QuartzCore
 import RibbonCore
 
-/// Owns the strips and keeps real windows in line with them: turns commands
-/// and window events into strip changes, then moves and resizes windows to
-/// match. Each macOS Space has its own strip; only the one on screen is laid out.
+/// Applies commands and window events to the strips (one per Space) and
+/// moves real windows to match.
 final class Controller: WindowTrackerDelegate {
     private(set) var settings: Settings
     private(set) var paused: Bool
@@ -436,9 +435,9 @@ final class Controller: WindowTrackerDelegate {
         Dictionary(strip.frames(g, sliver: settings.sliver, tabBarHeight: settings.tabBarHeight).map { ($0.window, $0.rect) }, uniquingKeysWith: { a, _ in a })
     }
 
-    /// What has to move. Windows already in place just get their new canvas
-    /// position recorded (one parked at an edge can move along the canvas
-    /// without moving on screen).
+    /// Windows whose frame differs from their target. Records canvas
+    /// positions for the rest, since a parked window can move on the canvas
+    /// without moving on screen.
     private func pendingChanges(_ g: Geometry) -> [Change] {
         strip.frames(g, sliver: settings.sliver, tabBarHeight: settings.tabBarHeight).compactMap { target in
             guard let window = tracker.windows[target.window] else { return nil }
@@ -452,10 +451,8 @@ final class Controller: WindowTrackerDelegate {
         }
     }
 
-    /// Snaps windows into place one at a time, always picking a window whose
-    /// destination is clear of every window still waiting to move, so nothing
-    /// lands on top of a neighbour. Returns false when an app refused a width
-    /// and the strip adopted the real one, so the caller recomputes.
+    /// Moves windows one at a time, each only once its destination is clear,
+    /// so none overlap. Returns false if an app refused a width.
     private func applyInOrder(_ changes: [Change], _ g: Geometry) -> Bool {
         guard !changes.isEmpty else { return true }
         suspendEnhancedUI(for: changes)
@@ -464,8 +461,7 @@ final class Controller: WindowTrackerDelegate {
             guard let next = pending.firstIndex(where: { change in
                 !pending.contains { other in other.id != change.id && overlaps(change.to, other.from, g) }
             }) else {
-                // Two windows trading places block each other: step one aside
-                // to the screen edge first, then carry on.
+                // A swap: park one window at the edge to break the deadlock.
                 let change = pending[0]
                 let aside = CGRect(origin: CGPoint(x: g.viewport.maxX - settings.sliver, y: change.from.minY), size: change.from.size)
                 change.window.setPosition(aside.origin)
@@ -499,9 +495,9 @@ final class Controller: WindowTrackerDelegate {
         return adopt(window, requested: to, previous: change.from, g)
     }
 
-    /// Reads back a resized window. Retries a width macOS only partly applied
-    /// near the screen edge (from Paneru), and keeps a width the app insists on
-    /// (minimum sizes, character grids). Returns false if the strip changed.
+    /// Reads back a resized window, retries a width macOS only partly applied
+    /// near the screen edge, and adopts a width the app insists on. Returns
+    /// false if the strip changed.
     private func adopt(_ window: AXWindow, requested to: CGRect, previous: CGRect, _ g: Geometry) -> Bool {
         guard var actual = window.frame else { return true }
         if actual.width + 1 < to.width, actual.width > previous.width + 1 {
@@ -517,17 +513,12 @@ final class Controller: WindowTrackerDelegate {
         return false
     }
 
-    /// Glides the canvas: every window travels from its old to its new canvas
-    /// position, and is parked at the edge only while it is wholly off screen.
-    /// So windows keep their spacing and slide off the edge instead of
-    /// catching up with each other. While moving, each window keeps the
-    /// narrower of its old and new sizes (shrinking at the start, growing at
-    /// the end), and every point between two non-overlapping layouts is
-    /// non-overlapping too. Each frame moves windows in the order that keeps
-    /// them clear of each other.
+    /// Interpolates canvas positions, parking each frame, so windows keep
+    /// their spacing. Each window uses the smaller of its two sizes while
+    /// moving, which keeps every intermediate layout overlap-free.
     private func animate(_ changes: [Change], _ goal: [WindowID: CGRect], _ g: Geometry) {
         suspendEnhancedUI(for: changes)
-        // Switching tabs snaps: the old tab tucks away first, then the new one appears.
+        // Tab switches snap rather than glide.
         let switching = changes.filter { isTucked($0.to, g) || isTucked($0.from, g) }
             .sorted { a, _ in isTucked(a.to, g) }
         for change in switching {
@@ -613,10 +604,8 @@ final class Controller: WindowTrackerDelegate {
         return hi - lo > settings.sliver + 1 ? lo...hi : nil
     }
 
-    /// Apps animate their own frame changes while AXEnhancedUserInterface is
-    /// on. Keep it off while windows are moving and put it back once things
-    /// have been still for a second (re-enabling makes Chromium apps rebuild
-    /// their accessibility tree, so not after every keypress).
+    /// Turns AXEnhancedUserInterface off while moving windows and restores it
+    /// after a second of quiet (re-enabling is expensive in Chromium apps).
     private func suspendEnhancedUI(for changes: [Change]) {
         for pid in Set(changes.map(\.window.pid)) { AX.suspendEnhancedUI(pid) }
         enhancedUIRestore?.cancel()
