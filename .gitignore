@@ -1,0 +1,6 @@
+.DS_Store
+.build/
+.swiftpm/
+build/
+# The full-quality render; media/ribbon-tour.mp4 is the 720p copy in the repo.
+media/Ribbon.mp4
